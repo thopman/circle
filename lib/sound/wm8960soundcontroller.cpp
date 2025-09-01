@@ -37,41 +37,54 @@ boolean CWM8960SoundController::Probe (void)
 {
 	// Originally based on https://github.com/RASPIAUDIO/ULTRA/blob/main/ultra.c
 	// Licensed under GPLv3
-
-	// Reset
+	
+	// Reset - R15: Software reset, clears all registers to default state
 	if (!WriteReg (15, 0x000))
 	{
 		return FALSE;
 	}
-
+	
 	// Power Management
+	// R25: Power Management (1) - Enable VREF, ADC L/R, DAC L/R, digital core
+	// Bit 8: VREF=1, Bit 5: AINL=1, Bit 4: AINR=1, Bit 3: ADCL=1, Bit 2: ADCR=1, Bit 0: DIGENB=1
 	if (   !WriteReg (25, m_bInSupported ? 0x1FC : 0x1C0)
+	    // R26: Power Management (2) - Enable DACs and outputs 
+	    // Bit 8: DACL=1, Bit 7: DACR=1, plus output enables based on support
 	    || !WriteReg (26, m_bOutSupported ? 0x1F9 : 0x001)
+	    // R47: Power Management (3) - Enable input/output mixers
+	    // Bit 5: LMIC=1, Bit 4: RMIC=1 (if input supported), Bit 3: LOMIX=1, Bit 2: ROMIX=1 (if output supported)
 	    || !WriteReg (47,   (m_bInSupported ? 0x030 : 0x000)
 			      | (m_bOutSupported ? 0x00C : 0x000)))
 	{
 		return FALSE;
 	}
-
-	// Clocking / PLL
+	
+	// Clocking / PLL Configuration
 	if (m_nSampleRate == 44100)
 	{
+		// R4: Clocking (1) - Select PLL as clock source
+		// Bit 0: CLKSEL=1 (use PLL), plus SYSCLKDIV and other clock settings
 		if (   !WriteReg (4, 0x005)
+		    // R52: PLL N - Integer part of PLL multiplier for 44.1kHz
 		    || !WriteReg (52, 0x037)
-		    || !WriteReg (53, 0x086)
-		    || !WriteReg (54, 0x0C2)
-		    || !WriteReg (55, 0x026))
+		    // R53-55: PLL K (fractional part) - 24-bit fractional multiplier for 44.1kHz
+		    || !WriteReg (53, 0x086)  // PLLK[23:16]
+		    || !WriteReg (54, 0x0C2)  // PLLK[15:8] 
+		    || !WriteReg (55, 0x026)) // PLLK[7:0]
 		{
 			return FALSE;
 		}
 	}
 	else if (m_nSampleRate == 48000)
 	{
+		// R4: Clocking (1) - Select PLL as clock source
 		if (   !WriteReg (4, 0x005)
+		    // R52: PLL N - Integer part of PLL multiplier for 48kHz
 		    || !WriteReg (52, 0x038)
-		    || !WriteReg (53, 0x031)
-		    || !WriteReg (54, 0x026)
-		    || !WriteReg (55, 0x0E8))
+		    // R53-55: PLL K (fractional part) - 24-bit fractional multiplier for 48kHz
+		    || !WriteReg (53, 0x031)  // PLLK[23:16]
+		    || !WriteReg (54, 0x026)  // PLLK[15:8]
+		    || !WriteReg (55, 0x0E8)) // PLLK[7:0]
 		{
 			return FALSE;
 		}
@@ -80,36 +93,77 @@ boolean CWM8960SoundController::Probe (void)
 	{
 		return FALSE;
 	}
-
-	if (   !WriteReg (5, 0x000)	// ADC and DAC Control
-	    || !WriteReg (7, 0x00A)	// Audio Interface
-	    || !WriteReg (20, 0x0F9))	// Noise control
+	
+	// ADC/DAC and Audio Interface Configuration
+	// R5: ADC & DAC Control (1) - Basic ADC/DAC settings, disable high-pass filter
+	// All bits 0 = normal operation, no mute, no high-pass filter
+	if (   !WriteReg (5, 0x000)
+	    // R7: Audio Interface - I2S format, slave mode
+	    // Bit 3: MS=0 (slave mode), Bit 1: LRP=1 (left channel on high LRCLK)
+	    || !WriteReg (7, 0x00A)
+	    // R20: Noise Gate - Enable noise gate with threshold
+	    // Bits 4-0: NGAT=11001 (noise gate threshold)
+	    || !WriteReg (20, 0x0F9))
 	{
 		return FALSE;
 	}
-
-	// Volume
-	if (   !WriteReg (2, 0x179)	// OUT1 L (Headphone) 0 dB
-	    || !WriteReg (3, 0x179)	// OUT1 R (Headphone) 0 dB
-	    || !WriteReg (40, 0x179)	// Speaker L 0 dB
-	    || !WriteReg (41, 0x179)	// Speaker R 0 dB
-	    || !WriteReg (51, 0x08D)	// Speaker Boost
-	    || !WriteReg (0, 0x100 | m_uchInVolume[0])	// Input L
-	    || !WriteReg (1, 0x100 | m_uchInVolume[1]))	// Input R
+	
+	// Volume Settings
+	// R2: LOUT1 volume (Headphone Left) - 0dB, enable volume update
+	// Bit 8: OUT1VU=1 (volume update), Bits 6-0: volume = 0dB
+	if (   !WriteReg (2, 0x179)
+	    // R3: ROUT1 volume (Headphone Right) - 0dB, enable volume update  
+	    || !WriteReg (3, 0x179)
+	    // R40: LOUT2 volume (Speaker Left) - 0dB, enable volume update
+	    || !WriteReg (40, 0x179)
+	    // R41: ROUT2 volume (Speaker Right) - 0dB, enable volume update
+	    || !WriteReg (41, 0x179)
+	    // R51: Class D Control (2) - Speaker boost settings
+	    // Bits 5-3: DCGAIN, Bits 2-0: ACGAIN for speaker boost
+	    || !WriteReg (51, 0x08D)
+	    // R0: Left Input PGA Volume - Use stored volume with update bit
+	    // Bit 8: IPVU=1 (input volume update), Bits 5-0: volume level
+	    || !WriteReg (0, 0x100 | m_uchInVolume[0])
+	    // R1: Right Input PGA Volume - Use stored volume with update bit
+	    || !WriteReg (1, 0x100 | m_uchInVolume[1]))
 	{
 		return FALSE;
 	}
-
-	// Inputs / Outputs
-	if (   !WriteReg (32, 0x138)	// ADCL Signal Path
-	    || !WriteReg (33, 0x138)	// ADCR Signal Path
-	    || !WriteReg (49, 0x0F7)	// Speaker Control
-	    || !WriteReg (34, 0x100)	// Left Out Mix
-	    || !WriteReg (37, 0x100))	// Right Out Mix
+	
+	// Input/Output Signal Path Configuration - MODIFIED FOR LOW-NOISE LINE INPUT
+	// R32: ADCL Signal Path - Configure left channel input routing
+	// Bit 8: LMN1=0 (disconnect LINPUT1 from PGA inverting input)
+	// Bit 7: LMP3=0 (disconnect LINPUT3 from PGA non-inverting input) 
+	// Bit 6: LMP2=0 (disconnect LINPUT2 from PGA non-inverting input)
+	// Bit 3: LMIC2B=0 (disconnect input PGA from boost mixer - we'll use line inputs directly)
+	// All 0 = disable microphone PGA path completely for lowest noise
+	if (   !WriteReg (32, 0x000)
+	    // R33: ADCR Signal Path - Configure right channel input routing (same as left)
+	    // Disable all microphone PGA connections for right channel
+	    || !WriteReg (33, 0x000)
+	    // R43: Input Boost Mixer (1) - Configure LINPUT2/LINPUT3 to boost mixer
+	    // Bits 6-4: LIN3BOOST[2:0]=001 (-12dB gain from LINPUT3 to boost mixer)
+	    // Bits 3-1: LIN2BOOST[2:0]=000 (mute LINPUT2)
+	    // Use LINPUT3 with minimal gain for clean line input
+	    || !WriteReg (43, 0x010)
+	    // R44: Input Boost Mixer (2) - Configure RINPUT2/RINPUT3 to boost mixer  
+	    // Bits 6-4: RIN3BOOST[2:0]=001 (-12dB gain from RINPUT3 to boost mixer)
+	    // Bits 3-1: RIN2BOOST[2:0]=000 (mute RINPUT2)
+	    // Use RINPUT3 with minimal gain for clean line input
+	    || !WriteReg (44, 0x010)
+	    // R49: Class D Control (1) - Enable speaker outputs
+	    // Bits 7-6: SPK_OP_EN[1:0]=11 (enable both left and right speakers)
+	    || !WriteReg (49, 0x0F7)
+	    // R34: Left Output Mix (1) - Route DAC to left output mixer
+	    // Bit 8: LD2LO=1 (connect left DAC output to left output mixer)
+	    || !WriteReg (34, 0x100)
+	    // R37: Right Output Mix (2) - Route DAC to right output mixer  
+	    // Bit 8: RD2RO=1 (connect right DAC output to right output mixer)
+	    || !WriteReg (37, 0x100))
 	{
 		return FALSE;
 	}
-
+	
 	return TRUE;
 }
 

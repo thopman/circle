@@ -431,7 +431,8 @@ boolean CI2SSoundBaseDevice::ControllerFactory (void)
 		return TRUE;
 	}
 
-	// PCM512x
+	// PCM512x - COMMENT OUT THESE LINES:
+	/*
 	m_pController = new CPCM512xSoundController (m_pI2CMaster, m_ucI2CAddress);
 	assert (m_pController);
 
@@ -442,6 +443,7 @@ boolean CI2SSoundBaseDevice::ControllerFactory (void)
 
 	delete m_pController;
 	m_pController = nullptr;
+	*/
 
 	// WM8960
 	m_pController = new CWM8960SoundController (m_pI2CMaster, m_ucI2CAddress,
