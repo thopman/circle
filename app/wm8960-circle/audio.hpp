@@ -35,11 +35,9 @@ private:
     float outputLeft[NUM_FRAMES];
     float outputRight[NUM_FRAMES];
     
-    // Helper functions
-    int32_t u32_to_s24(uint32_t value);
-    uint32_t s24_to_u32(int32_t value);
-    void convertInputToFloat();
-    void convertFloatToOutput();
+    // Private helper functions (implementations in .cpp)
+    void convertAndDeinterleave();
+    void convertAndInterleave();
 
 public:
     CAudio(CInterruptSystem *pInterrupt, CI2CMaster *pI2CMaster);
@@ -49,7 +47,7 @@ public:
     void PutChunk(const u32 *pBuffer, unsigned nChunkSize) override;
     unsigned GetChunk(u32 *pBuffer, unsigned nChunkSize) override;
     
-    // Accessors for buffer size parameters (useful for debugging/testing)
+    // Accessors for buffer size parameters
     static unsigned GetAudioBlockSize() { return AUDIO_BLOCK_SIZE; }
     static unsigned GetNumFrames() { return NUM_FRAMES; }
     static unsigned GetSampleRate() { return SAMPLE_RATE; }

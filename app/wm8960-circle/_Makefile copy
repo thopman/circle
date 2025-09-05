@@ -19,9 +19,7 @@ include $(CIRCLEHOME)/Rules.mk
 CFLAGS += -I "$(NEWLIBDIR)/include" -I $(STDDEF_INCPATH) -I ../../include
 
 # Add sound library to the libs (you need this for audio)
-LIBS := $(NEWLIBDIR)/lib/libc.a \
-    $(NEWLIBDIR)/lib/libm.a \
-    $(NEWLIBDIR)/lib/libcirclenewlib.a \
+LIBS := $(NEWLIBDIR)/lib/libm.a $(NEWLIBDIR)/lib/libc.a $(NEWLIBDIR)/lib/libcirclenewlib.a \
     $(CIRCLEHOME)/lib/sound/libsound.a \
     $(CIRCLEHOME)/addon/SDCard/libsdcard.a \
     $(CIRCLEHOME)/lib/usb/libusb.a \
@@ -30,8 +28,6 @@ LIBS := $(NEWLIBDIR)/lib/libc.a \
     $(CIRCLEHOME)/lib/fs/libfs.a \
     $(CIRCLEHOME)/lib/net/libnet.a \
     $(CIRCLEHOME)/lib/sched/libsched.a \
-    $(CIRCLEHOME)/lib/libcircle.a 
-    
-
+    $(CIRCLEHOME)/lib/libcircle.a
 
 -include $(DEPS)

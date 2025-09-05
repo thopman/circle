@@ -60,8 +60,8 @@ class circleFaustDSP
         ~circleFaustDSP();
     
         // setup the the hardware buffer pointers.
-        void setDSP_ChannelBuffers(FAUSTFLOAT* AudioChannelA_0_Left, FAUSTFLOAT* AudioChannelA_0_Right, 
-                                   FAUSTFLOAT* AudioChannelB_0_Left, FAUSTFLOAT* AudioChannelB_0_Right);
+        void setDSP_ChannelBuffers(FAUSTFLOAT *AudioChannelA_0_Left, FAUSTFLOAT *AudioChannelA_0_Right, 
+                                    FAUSTFLOAT *AudioChannelB_0_Left, FAUSTFLOAT *AudioChannelB_0_Right);
     
         //-----------------`void stop()`--------------------------
         // Callback to render a buffer.
