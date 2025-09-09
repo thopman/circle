@@ -21,7 +21,7 @@
 #define _miniorgan_h
 
 // define only one
-//#define USE_I2S
+#define USE_I2S
 //#define USE_HDMI
 //#define USE_USB
 
