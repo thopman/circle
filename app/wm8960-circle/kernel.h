@@ -15,6 +15,14 @@
 #include <circle/logger.h>
 #include <circle/types.h>
 #include "audio.hpp"
+#include "midiconfig.h"
+#ifdef USE_USB_MIDI_HOST || USE_ALL_MIDI_INPUTS || USE_USB_MIDI_GADGET
+#include <circle/usb/usbhcidevice.h>
+#endif
+#ifdef USE_USB_MIDI_GADGET
+#include <circle/usb/gadget/usbmidigadget.h>
+#endif
+
 
 enum TShutdownMode
 {
@@ -44,6 +52,15 @@ private:
 	CLogger				m_Logger;
 	CI2CMaster			m_I2CMaster;
 	CAudio				*m_pSound;
+	#ifdef USE_USB_MIDI_HOST || USE_ALL_MIDI_INPUTS
+    CUSBHCIDevice       *m_pUSB;        // USB host controller
+	#elif defined(USE_USB_MIDI_GADGET)
+    CUSBMIDIGadget      *m_pUSB;        // USB MIDI gadget
+	#endif
+
+	#ifdef USE_SERIAL_MIDI || USE_ALL_MIDI_INPUTS
+    CSerialDevice       m_MidiSerial;   // Hardware UART for MIDI
+	#endif
 };
 
 #endif
