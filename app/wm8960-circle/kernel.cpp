@@ -128,7 +128,7 @@ TShutdownMode CKernel::Run (void)
         // Process MIDI messages
         m_pSound->ProcessMidi(bUpdated);
 
-        if (++performanceCounter >= 100) {  // Every 100 main loop iterations
+        if (performanceCounter >= 100) {  // Every 100 main loop iterations
             performanceCounter = 0;
             ProcessPerformanceLogging();
         }
