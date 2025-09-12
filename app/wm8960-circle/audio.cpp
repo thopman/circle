@@ -48,7 +48,10 @@ CAudio::CAudio(CInterruptSystem *pInterrupt, CI2CMaster *pI2CMaster)
       m_nMidiType(0),
       m_nMidiChannel(0),
       m_nMidiData1(0),
-      m_nMidiData2(0)
+      m_nMidiData2(0),
+      m_DSPPerformanceMonitor("Faust DSP", 2000),
+      m_TotalPerformanceMonitor("Total Audio", 2000),
+      m_nPerformanceLogCounter(0)
 {   
     s_pThis = this;  // Set static pointer for callbacks
 
@@ -74,6 +77,12 @@ CAudio::CAudio(CInterruptSystem *pInterrupt, CI2CMaster *pI2CMaster)
     // Initialize serial MIDI if device is set later
     memset(m_SerialMessage, 0, sizeof(m_SerialMessage));
     #endif
+
+    // Initialize performance monitoring
+    m_DSPPerformanceMonitor.SetSampleRate(SAMPLE_RATE);
+    m_DSPPerformanceMonitor.SetBufferSize(NUM_FRAMES);
+    m_TotalPerformanceMonitor.SetSampleRate(SAMPLE_RATE);
+    m_TotalPerformanceMonitor.SetBufferSize(NUM_FRAMES);
 }
 
 CAudio::~CAudio(void)
@@ -121,6 +130,9 @@ void CAudio::convertAndInterleave()
 // PutChunk: Receive I2S input and convert to float
 void CAudio::PutChunk(const u32 *pBuffer, unsigned nChunkSize)
 {
+    // Start total performance monitoring
+    m_TotalPerformanceMonitor.StartTiming();
+
     if (nChunkSize != AUDIO_BLOCK_SIZE) {
         return; // Silent error handling in audio callback
     }
@@ -152,6 +164,8 @@ unsigned CAudio::GetChunk(u32 *pBuffer, unsigned nChunkSize)
         currentOutputBuffer = outputBuffer_B;
     }
     
+    // Start DSP performance monitoring
+    m_DSPPerformanceMonitor.StartTiming();
     // Process audio through Faust DSP
     if (aCircleFaustDSP) {
         aCircleFaustDSP->processAudioCallback();
@@ -160,7 +174,9 @@ unsigned CAudio::GetChunk(u32 *pBuffer, unsigned nChunkSize)
         memcpy(outputLeft, inputLeft, sizeof(inputLeft));
         memcpy(outputRight, inputRight, sizeof(inputRight));
     }
-    
+    // End DSP performance monitoring
+    m_DSPPerformanceMonitor.EndTiming();
+
     // Convert separate float arrays back to interleaved I2S output
     convertAndInterleave();
     
@@ -170,6 +186,9 @@ unsigned CAudio::GetChunk(u32 *pBuffer, unsigned nChunkSize)
     // Switch buffers for next iteration
     useBufferA = !useBufferA;
     
+    // End total performance monitoring
+    m_TotalPerformanceMonitor.EndTiming();
+    m_nPerformanceLogCounter++;
     return nChunkSize;
 }
 
@@ -332,3 +351,21 @@ void CAudio::USBDeviceRemovedHandler(CDevice *pDevice, void *pContext)
     }
 #endif
 }
+
+void CAudio::LogPerformanceStatistics()
+{
+    m_DSPPerformanceMonitor.LogStatistics();
+    m_TotalPerformanceMonitor.LogStatistics();
+    
+    // Optional: Get real-time results for display
+    auto dspResult = m_DSPPerformanceMonitor.GetLastTimingResult();
+    auto totalResult = m_TotalPerformanceMonitor.GetLastTimingResult();
+    
+    CLogger::Get()->Write("audio", LogNotice, 
+        "Last buffer: DSP=%.1f%% Total=%.1f%% (%.1f/%.1f μs)",
+        dspResult.cpuUsagePercent,
+        totalResult.cpuUsagePercent,
+        dspResult.processingTimeUs,
+        totalResult.processingTimeUs);
+}
+    

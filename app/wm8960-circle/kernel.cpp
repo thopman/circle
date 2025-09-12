@@ -127,6 +127,11 @@ TShutdownMode CKernel::Run (void)
         
         // Process MIDI messages
         m_pSound->ProcessMidi(bUpdated);
+
+        if (++performanceCounter >= 100) {  // Every 100 main loop iterations
+            performanceCounter = 0;
+            ProcessPerformanceLogging();
+        }
         
         // Short delay to prevent CPU overload but keep MIDI responsive
         m_Timer.MsDelay(1);  // 1ms delay = ~1000Hz MIDI polling rate

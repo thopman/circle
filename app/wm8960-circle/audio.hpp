@@ -17,6 +17,8 @@
 #include <circle/sound/i2ssoundbasedevice.h>
 #include <cstdint>
 
+#include "performancemonitor.h"
+
 class circleFaustDSP;
 
 class CAudio : public CI2SSoundBaseDevice
@@ -76,6 +78,11 @@ private:
     
     static CAudio *s_pThis;              // For static callbacks
 
+    // Performance monitor
+    CPerformanceMonitor m_DSPPerformanceMonitor;
+    CPerformanceMonitor m_TotalPerformanceMonitor;
+    unsigned m_nPerformanceLogCounter;
+
 public:
     CAudio(CInterruptSystem *pInterrupt, CI2CMaster *pI2CMaster);
     ~CAudio(void);
@@ -96,6 +103,10 @@ public:
     }
     #endif
     void ProcessMidi(boolean bPlugAndPlayUpdated);  // Call this from main loop
+
+    //performance monitoring
+    void ProcessPerformanceLogging();
+    void LogPerformanceStatistics();
 };
 
 #endif // _audio_hpp_
